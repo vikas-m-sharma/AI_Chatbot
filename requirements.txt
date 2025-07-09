@@ -87,3 +87,17 @@ tzdata==2024.2
 urllib3==2.3.0
 uvicorn==0.34.0
 yarl==1.18.3
+fastapi
+uvicorn[standard]
+python-dotenv
+requests
+
+# LangChain Core + Providers
+langchain
+langchain-core
+langchain-openai
+langchain-groq
+langchain-tavily
+
+# Optional (recommended for stability)
+pydantic
