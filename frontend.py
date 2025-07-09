@@ -67,7 +67,8 @@ if user_input:
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             try:
-                response = requests.post("http://127.0.0.1:9999/chat", json=payload)
+                response = requests.post("http://127.0.0.1:8000/chat", json=payload)
+
                 if response.status_code == 200:
                     reply = response.json().get("response", "⚠️ No response.")
                     st.session_state.chat_history.append(("assistant", reply))
