@@ -1,54 +1,78 @@
-# if you don't use pipenv uncomment the following:
-# from dotenv import load_dotenv
-# load_dotenv()
-
 import streamlit as st
 import requests
+import uuid
 
-# Step 1: Setup Streamlit UI
-st.set_page_config(page_title="LangGraph Agent UI", layout="centered")
-st.title("AI Chatbot Agents 🤖")
-st.write("Create and interact with your custom AI agent!")
+st.set_page_config(page_title="Inquiro AI", layout="wide")
 
-system_prompt = st.text_area("🧠 Define your AI Agent:", height=70, placeholder="E.g., Act as a helpful assistant...")
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())[:8]
 
-MODEL_NAMES_GROQ = ["llama-3.3-70b-versatile", "mixtral-8x7b-32768"]
-MODEL_NAMES_OPENAI = ["gpt-4o-mini"]
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-provider = st.radio("Select Provider:", ("Groq", "OpenAI"))
+with st.sidebar:
+    st.markdown("## 🤖 Inquiro AI")
+    st.caption("Your smart assistant for real-time, web-aware conversations.")
+    st.markdown("---")
 
-selected_model = st.selectbox(
-    "Select Model:",
-    MODEL_NAMES_GROQ if provider == "Groq" else MODEL_NAMES_OPENAI
-)
+    st.text_input("Session ID:", value=st.session_state.session_id, key="session_id_display", disabled=True)
 
-allow_web_search = st.checkbox("Allow Web Search")
+    if st.button("🆕 Start New Chat"):
+        st.session_state.chat_history = []
+        st.session_state.session_id = str(uuid.uuid4())[:8]
+        st.rerun()
 
-user_query = st.text_area("💬 Ask something:", height=150, placeholder="What's the capital of India?")
+    st.markdown("---")
 
-API_URL = "http://127.0.0.1:9999/chat"
+    provider = st.radio("Model Provider:", ["Groq", "OpenAI"])
+    model = st.selectbox(
+        "Choose Model:",
+        ["llama-3.3-70b-versatile", "mixtral-8x7b-32768"] if provider == "Groq" else ["gpt-4o-mini"]
+    )
 
-if st.button("🚀 Ask Agent!"):
-    if user_query.strip():
-        payload = {
-            "model_name": selected_model,
-            "model_provider": provider,
-            "system_prompt": system_prompt,
-            "messages": [user_query],
-            "allow_search": allow_web_search
-        }
+    system_prompt = st.text_area(
+        "🧠 AI Role Prompt:",
+        height=80,
+        placeholder="You're a helpful assistant with access to real-time knowledge."
+    )
 
-        try:
-            response = requests.post(API_URL, json=payload)
-            if response.status_code == 200:
-                data = response.json()
-                # Try to extract the actual string response
-                final_response = data.get("response", data)  # handles both dict or plain string
-                st.success("✅ Agent Response:")
-                st.markdown(f"**{final_response}**")
-            else:
-                st.error(f"❌ Error {response.status_code}: {response.text}")
-        except Exception as e:
-            st.error(f"⚠️ Request failed: {e}")
-    else:
-        st.warning("Please enter a question before submitting.")
+    allow_search = st.checkbox("🌐 Enable Web Search", value=True)
+
+    st.markdown("---")
+    st.markdown("Built with ❤️ by **Vikas Sharma**")
+
+for role, message in st.session_state.chat_history:
+    with st.chat_message("user" if role == "user" else "assistant"):
+        st.markdown(message)
+
+user_input = st.chat_input("Type your message here...")
+
+if user_input:
+    if user_input.lower().strip() in ["hi", "hello", "hey", "how are you?", "good morning", "good evening"]:
+        allow_search = False
+
+    st.session_state.chat_history.append(("user", user_input))
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    payload = {
+        "model_name": model,
+        "model_provider": provider,
+        "system_prompt": system_prompt,
+        "messages": [user_input],
+        "allow_search": allow_search,
+        "session_id": st.session_state.session_id
+    }
+
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            try:
+                response = requests.post("http://127.0.0.1:9999/chat", json=payload)
+                if response.status_code == 200:
+                    reply = response.json().get("response", "⚠️ No response.")
+                    st.session_state.chat_history.append(("assistant", reply))
+                    st.markdown(reply)
+                else:
+                    st.error(f"❌ Error {response.status_code}: {response.text}")
+            except Exception as e:
+                st.error(f"⚠️ Request failed: {e}")
